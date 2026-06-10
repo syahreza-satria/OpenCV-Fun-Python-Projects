@@ -1,20 +1,31 @@
 import cv2
 from cvzone.HandTrackingModule import HandDetector
 import pyttsx3
+import threading
 
-# 1. Setup Suara (Text to Speech)
-engine = pyttsx3.init()
-# Mengatur kecepatan bicara (opsional)
-engine.setProperty('rate', 150) 
+# Fungsi untuk bersuara tanpa memblokir thread utama (camera feed)
+def speak_async(text):
+    def speech_worker():
+        try:
+            # Inisialisasi engine di dalam thread untuk menghindari konflik COM Windows
+            engine = pyttsx3.init()
+            engine.setProperty('rate', 150)
+            engine.say(text)
+            engine.runAndWait()
+        except Exception as e:
+            print(f"Error running TTS: {e}")
 
-# 2. Setup Kamera
+    thread = threading.Thread(target=speech_worker, daemon=True)
+    thread.start()
+
+# 1. Setup Kamera
 # Angka 0 biasanya kamera laptop bawaan. 
 # Jika pakai webcam eksternal usb, coba ganti jadi 1.
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280) # Lebar kamera
 cap.set(4, 720)  # Tinggi kamera
 
-# 3. Setup Detektor Tangan
+# 2. Setup Detektor Tangan
 # detectionCon: seberapa yakin AI bahwa itu tangan (0.8 = 80%)
 detector = HandDetector(detectionCon=0.8, maxHands=1)
 
@@ -25,10 +36,17 @@ print("Tekan tombol 'q' di keyboard untuk keluar.")
 while True:
     # Baca gambar dari kamera
     success, img = cap.read()
+    if not success:
+        print("Gagal membaca kamera.")
+        break
+        
+    # Balik gambar secara horizontal (efek cermin) agar lebih intuitif
+    img = cv2.flip(img, 1)
     
     # Cari tangan di dalam gambar
     # draw=True artinya gambar garis tulang tangan di layar
-    hands, img = detector.findHands(img, draw=True) 
+    # flipType=False karena kita sudah membalik gambarnya secara manual
+    hands, img = detector.findHands(img, draw=True, flipType=False) 
 
     if hands:
         # Jika tangan terdeteksi, ambil informasi tangan pertama
@@ -55,8 +73,7 @@ while True:
                 text = str(total_fingers)
             
             print(f"Mengucapkan: {text}")
-            engine.say(text)
-            engine.runAndWait()
+            speak_async(text)
             last_finger_count = total_fingers
 
     # Tampilkan gambar hasil olahan

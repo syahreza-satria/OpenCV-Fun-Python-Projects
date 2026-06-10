@@ -27,7 +27,7 @@ cap.set(4, 720)  # Tinggi kamera
 
 # 2. Setup Detektor Tangan
 # detectionCon: seberapa yakin AI bahwa itu tangan (0.8 = 80%)
-detector = HandDetector(detectionCon=0.8, maxHands=1)
+detector = HandDetector(detectionCon=0.8, maxHands=2)
 
 last_finger_count = -1 # Variabel agar suara tidak berulang-ulang
 
@@ -49,15 +49,11 @@ while True:
     hands, img = detector.findHands(img, draw=True, flipType=False) 
 
     if hands:
-        # Jika tangan terdeteksi, ambil informasi tangan pertama
-        hand1 = hands[0] 
-        lmList = hand1["lmList"]  # List koordinat 21 titik tangan
-        
-        # Cek jari mana saja yang naik (returns list [1,0,1,1,1] dll)
-        fingers = detector.fingersUp(hand1)
-        
-        # Hitung total jari yang naik
-        total_fingers = fingers.count(1)
+        total_fingers = 0
+        for hand in hands:
+            # Cek jari mana saja yang naik untuk tangan ini
+            fingers = detector.fingersUp(hand)
+            total_fingers += fingers.count(1)
         
         # Tampilkan angka di layar
         cv2.putText(img, f'Jari: {total_fingers}', (50, 50), 
@@ -69,12 +65,17 @@ while True:
                 text = "Nol"
             elif total_fingers == 5:
                 text = "Hai Kamu"
+            elif total_fingers == 10:
+                text = "Hai Semua"
             else:
                 text = str(total_fingers)
             
             print(f"Mengucapkan: {text}")
             speak_async(text)
             last_finger_count = total_fingers
+    else:
+        # Reset tracker jika tidak ada tangan terdeteksi sama sekali
+        last_finger_count = -1
 
     # Tampilkan gambar hasil olahan
     cv2.imshow("Kamera Pintar", img)

@@ -63,14 +63,19 @@ while True:
     # Balik gambar secara horizontal (efek cermin)
     img = cv2.flip(img, 1)
     
-    # flipType=True agar detector membalik label kiri/kanan tangan setelah gambar di-flip.
-    # Ini sangat penting agar deteksi jempol (yang membandingkan koordinat X kiri/kanan) tidak terbalik!
-    hands, img = detector.findHands(img, draw=True, flipType=True) 
+    # flipType=False agar detector menunjukkan label tangan yang benar secara fisik (Kiri tetap Kiri, Kanan tetap Kanan)
+    hands, img = detector.findHands(img, draw=True, flipType=False) 
 
     if hands:
         total_fingers = 0
         for hand in hands:
-            fingers = detector.fingersUp(hand)
+            # Karena gambar di-flip secara horizontal, arah koordinat X jempol terbalik.
+            # Kita buat salinan data tangan dan balikkan tipe tangannya ("Left" <-> "Right") 
+            # hanya untuk perhitungan fingersUp agar deteksi jempolnya akurat.
+            temp_hand = hand.copy()
+            temp_hand["type"] = "Left" if hand["type"] == "Right" else "Right"
+            
+            fingers = detector.fingersUp(temp_hand)
             total_fingers += fingers.count(1)
         
         cv2.putText(img, f'Jari: {total_fingers}', (50, 50), 
